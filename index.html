@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#00ff41">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FRANCIS">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg">
+<title>FRANCIS</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Courier New', Courier, monospace;
+  background: #050d05;
+  color: #00ff41;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* MATRIX CANVAS */
+#matrix {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ALL CONTENT ABOVE CANVAS */
+.page {
+  position: relative;
+  z-index: 2;
+  padding: 20px 16px 40px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* HERO CARD */
+.hero-card {
+  background: rgba(5, 18, 5, 0.88);
+  border: 2.5px solid #00ff41;
+  border-radius: 18px;
+  padding: 32px 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: 0 0 24px rgba(0,255,65,0.18), inset 0 0 30px rgba(0,0,0,0.4);
+}
+
+.hero-title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #00ff41;
+  text-shadow: 0 0 16px #00ff41, 0 0 32px rgba(0,255,65,0.4);
+  line-height: 1.2;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.hero-desc {
+  font-size: 0.95rem;
+  color: #00cc33;
+  line-height: 1.9;
+  letter-spacing: 0.5px;
+}
+
+/* TOOLS CARD */
+.tools-card {
+  background: rgba(5, 18, 5, 0.88);
+  border: 2.5px solid #00ff41;
+  border-radius: 18px;
+  padding: 20px 16px;
+  box-shadow: 0 0 24px rgba(0,255,65,0.18), inset 0 0 30px rgba(0,0,0,0.4);
+  margin-bottom: 20px;
+}
+
+.tools-header {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #00ff41;
+  text-shadow: 0 0 10px #00ff41;
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+
+/* SEARCH BOX */
+.search-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(0,0,0,0.5);
+  border: 1.5px solid #00aa22;
+  border-radius: 10px;
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.88rem;
+  outline: none;
+  letter-spacing: 0.5px;
+}
+.search-wrap input:focus { border-color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.3); }
+.search-wrap input::placeholder { color: #006615; }
+
+/* TOOL BUTTONS */
+.tool-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 2px solid #00aa22;
+  background: rgba(0,0,0,0.35);
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  text-align: left;
+  transition: all 0.18s;
+}
+
+.tool-btn:hover, .tool-btn:active {
+  background: rgba(0,255,65,0.08);
+  border-color: #00ff41;
+  box-shadow: 0 0 14px rgba(0,255,65,0.25);
+}
+
+/* First/highlighted tool gets purple like screenshot */
+.tool-btn.featured {
+  background: #6b21a8;
+  border: 2px solid #a855f7;
+  color: #a855f7;
+  box-shadow: 0 0 16px rgba(168,85,247,0.3);
+}
+.tool-btn.featured:hover {
+  background: #7c3aed;
+  box-shadow: 0 0 22px rgba(168,85,247,0.5);
+}
+
+.tool-icon { font-size: 1.35rem; flex-shrink: 0; }
+.tool-name { flex: 1; }
+.tool-tag {
+  font-size: 0.58rem;
+  letter-spacing: 1.5px;
+  color: #006615;
+  border: 1px solid #003a0d;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+}
+
+/* MODAL OVERLAY */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: rgba(5,18,5,0.98);
+  border: 2px solid #00ff41;
+  border-radius: 16px;
+  width: 100%; max-width: 480px;
+  box-shadow: 0 0 40px rgba(0,255,65,0.2);
+  animation: popIn 0.22s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #003a0d;
+  position: sticky; top: 0;
+  background: rgba(5,18,5,0.98);
+}
+.modal-title-row { display: flex; align-items: center; gap: 10px; }
+.modal-icon-box { font-size: 1.4rem; }
+.modal-name {
+  font-size: 1rem; font-weight: bold; color: #00ff41;
+  text-shadow: 0 0 8px #00ff41; letter-spacing: 0.5px;
+}
+.modal-close {
+  background: none; border: 1px solid #003a0d;
+  color: #006615; width: 28px; height: 28px;
+  border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-family: monospace;
+}
+.modal-close:hover { border-color: #ff4444; color: #ff4444; }
+
+.modal-body { padding: 18px; }
+.modal-desc { font-size: 0.75rem; color: #006615; margin-bottom: 16px; letter-spacing: 0.5px; line-height: 1.5; }
+
+.f-label { font-size: 0.65rem; letter-spacing: 2px; color: #00aa22; display: block; margin-bottom: 6px; }
+
+.m-input, .m-textarea, .m-select {
+  width: 100%;
+  padding: 11px 13px;
+  background: rgba(0,0,0,0.6);
+  border: 1.5px solid #003a0d;
+  border-radius: 8px;
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  outline: none;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+  letter-spacing: 0.3px;
+}
+.m-textarea { resize: vertical; min-height: 100px; }
+.m-input:focus, .m-textarea:focus, .m-select:focus { border-color: #00ff41; box-shadow: 0 0 6px rgba(0,255,65,0.2); }
+.m-input::placeholder, .m-textarea::placeholder { color: #003a0d; }
+.m-select option { background: #050d05; }
+
+.m-btn {
+  width: 100%; padding: 13px;
+  background: #00ff41; border: none; border-radius: 8px;
+  color: #000; font-family: 'Courier New', monospace;
+  font-weight: bold; font-size: 0.9rem; letter-spacing: 2px;
+  text-transform: uppercase; cursor: pointer; transition: opacity 0.2s;
+  box-shadow: 0 0 16px rgba(0,255,65,0.3);
+}
+.m-btn:hover { opacity: 0.85; }
+
+.m-output {
+  margin-top: 14px; padding: 12px;
+  background: rgba(0,0,0,0.7);
+  border: 1.5px solid #003a0d;
+  border-left: 3px solid #00ff41;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.72rem; color: #00ff41;
+  word-break: break-all; white-space: pre-wrap;
+  max-height: 200px; overflow-y: auto;
+  display: none; letter-spacing: 0.3px;
+}
+
+#mdout {
+  margin-top: 14px; padding: 12px;
+  background: rgba(0,0,0,0.5);
+  border: 1.5px solid #003a0d; border-radius: 8px;
+  display: none; color: #00cc33;
+  font-size: 0.85rem; line-height: 1.6;
+}
+
+#cdout {
+  margin-top: 14px; text-align: center;
+  font-size: 3rem; color: #00ff41;
+  text-shadow: 0 0 20px #00ff41;
+  display: none; letter-spacing: 4px;
+  font-weight: bold;
+}
+
+/* INSTALL BANNER */
+.install-banner {
+  background: rgba(5,18,5,0.9);
+  border: 2px solid #00ff41;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 18px rgba(0,255,65,0.15);
+  cursor: pointer;
+  display: none;
+}
+.install-banner.show { display: flex; }
+.install-banner-text { flex: 1; }
+.install-banner-title { font-size: 0.9rem; font-weight: bold; color: #00ff41; margin-bottom: 2px; }
+.install-banner-sub { font-size: 0.72rem; color: #006615; }
+.install-btn {
+  background: #00ff41; color: #000;
+  border: none; border-radius: 8px;
+  padding: 8px 16px; font-family: 'Courier New', monospace;
+  font-weight: bold; font-size: 0.75rem; letter-spacing: 1px;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #003a0d;
+  letter-spacing: 2px;
+  padding: 10px 0 20px;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #050d05; }
+::-webkit-scrollbar-thumb { background: #006615; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="page">
+
+  <!-- INSTALL BANNER -->
+  <div class="install-banner" id="installBanner">
+    <div style="font-size:1.6rem">📲</div>
+    <div class="install-banner-text">
+      <div class="install-banner-title">INSTALL FRANCIS</div>
+      <div class="install-banner-sub">Add to home screen for offline use</div>
+    </div>
+    <button class="install-btn" id="installBtn">INSTALL</button>
+  </div>
+
+  <!-- HERO CARD -->
+  <div class="hero-card">
+    <div class="hero-title">Hey, I am<br>FRANCIS</div>
+    <div class="hero-desc">
+      This is my website featuring<br>
+      important tools designed to<br>
+      provide you with a smooth and<br>
+      professional experience.
+    </div>
+  </div>
+
+  <!-- TOOLS CARD -->
+  <div class="tools-card">
+    <div class="tools-header">&gt; Select Tool</div>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="search tools..." oninput="filterTools(this.value)">
+    </div>
+    <div id="toolsList"></div>
+  </div>
+
+  <div class="footer">FRANCIS // ALL TOOLS RUN OFFLINE // © 2025</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-row">
+        <span class="modal-icon-box" id="mIcon"></span>
+        <span class="modal-name" id="mName"></span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc" id="mDesc"></p>
+      <div id="mBody"></div>
+      <div class="m-output" id="mOutput"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MATRIX RAIN (GREEN like screenshot) ─────────────────────
+(function(){
+  const canvas = document.getElementById('matrix');
+  const ctx = canvas.getContext('2d');
+  const SZ = 15;
+  const CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZアイウエオカキクケコ@#$%&*+-=!?<>';
+  let cols, drops;
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols = Math.floor(canvas.width / SZ);
+    drops = Array.from({length: cols}, () => Math.random() * -60);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  function draw(){
+    ctx.fillStyle = 'rgba(5,13,5,0.06)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    drops.forEach((y,i) => {
+      // bright lead char
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#00ff41';
+      ctx.font = 'bold '+SZ+'px monospace';
+      ctx.fillText(CHARS[Math.floor(Math.random()*CHARS.length)], i*SZ, y*SZ);
+      // fading trail
+      for(let k=1; k<=8; k++){
+        const ty = (y-k)*SZ;
+        if(ty > 0){
+          ctx.globalAlpha = Math.max(0, (9-k)/14);
+          ctx.fillStyle = '#008f11';
+          ctx.font = SZ+'px monospace';
+          ctx.fillText(CHARS[Math.floor(Math.random()*CHARS.length)], i*SZ, ty);
+        }
+      }
+      ctx.globalAlpha = 1;
+      if(drops[i]*SZ > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i] += 0.45;
+    });
+  }
+  setInterval(draw, 40);
+})();
+
+// ── TOOLS DATA ───────────────────────────────────────────────
+const tools = [
+  {id:'sha256', icon:'🔐', name:'SHA-256 Hasher', desc:'Hash any text with SHA-256 algorithm', tag:'SEC',
+   body:`<label class="f-label">Input text</label><textarea class="m-textarea" id="t1" placeholder="Enter text to hash..."></textarea><button class="m-btn" onclick="sha256hash()">GENERATE HASH</button>`},
+  {id:'sha512', icon:'🛡️', name:'SHA-512 Hasher', desc:'Generate SHA-512 hash of any text', tag:'SEC',
+   body:`<label class="f-label">Input text</label><textarea class="m-textarea" id="t2" placeholder="Enter text to hash..."></textarea><button class="m-btn" onclick="sha512hash()">GENERATE HASH</button>`},
+  {id:'base64enc', icon:'🔤', name:'Base64 Encoder', desc:'Encode text to Base64 format', tag:'ENC',
+   body:`<label class="f-label">Input text</label><textarea class="m-textarea" id="b64e" placeholder="Enter text..."></textarea><button class="m-btn" onclick="b64Encode()">ENCODE</button>`},
+  {id:'base64dec', icon:'🔣', name:'Base64 Decoder', desc:'Decode Base64 strings back to text', tag:'ENC',
+   body:`<label class="f-label">Base64 string</label><textarea class="m-textarea" id="b64d" placeholder="Paste Base64 here..."></textarea><button class="m-btn" onclick="b64Decode()">DECODE</button>`},
+  {id:'wordcount', icon:'📊', name:'Word Counter', desc:'Count words, characters and sentences', tag:'TXT',
+   body:`<label class="f-label">Your text</label><textarea class="m-textarea" id="wc" placeholder="Paste text here..." style="min-height:120px"></textarea><button class="m-btn" onclick="wordCount()">ANALYZE</button>`},
+  {id:'jsonformat', icon:'📋', name:'JSON Formatter', desc:'Prettify and validate JSON data', tag:'DEV',
+   body:`<label class="f-label">Raw JSON</label><textarea class="m-textarea" id="jsonin" placeholder='{"key":"value"}' style="min-height:110px"></textarea><button class="m-btn" onclick="formatJSON()">FORMAT</button>`},
+  {id:'urlenc', icon:'🔗', name:'URL Encoder', desc:'Encode URLs for safe web requests', tag:'WEB',
+   body:`<label class="f-label">URL</label><textarea class="m-textarea" id="urle" placeholder="https://example.com/?q=hello world"></textarea><button class="m-btn" onclick="urlEncode()">ENCODE</button>`},
+  {id:'urldec', icon:'🔓', name:'URL Decoder', desc:'Decode percent-encoded URLs', tag:'WEB',
+   body:`<label class="f-label">Encoded URL</label><textarea class="m-textarea" id="urld" placeholder="https%3A%2F%2F..."></textarea><button class="m-btn" onclick="urlDecode()">DECODE</button>`},
+  {id:'csvjson', icon:'📂', name:'CSV to JSON', desc:'Convert CSV data into JSON', tag:'CVT',
+   body:`<label class="f-label">CSV data</label><textarea class="m-textarea" id="csvin" placeholder="name,age&#10;Alice,30" style="min-height:100px"></textarea><button class="m-btn" onclick="csvToJson()">CONVERT</button>`},
+  {id:'htmlesc', icon:'🌐', name:'HTML Escape', desc:'Escape special HTML characters', tag:'WEB',
+   body:`<label class="f-label">HTML</label><textarea class="m-textarea" id="htmlin" placeholder="<div>Hello & World</div>"></textarea><button class="m-btn" onclick="htmlEscape()">ESCAPE</button>`},
+  {id:'loremgen', icon:'📝', name:'Lorem Generator', desc:'Generate placeholder lorem ipsum text', tag:'TXT',
+   body:`<label class="f-label">Paragraphs</label><input class="m-input" id="loremNum" type="number" min="1" max="20" value="3"><button class="m-btn" onclick="loremGen()">GENERATE</button>`},
+  {id:'passwdgen', icon:'🔑', name:'Password Generator', desc:'Generate strong random passwords', tag:'SEC',
+   body:`<label class="f-label">Length</label><input class="m-input" id="pwlen" type="number" value="16" min="8" max="64"><label class="f-label">Type</label><select class="m-select" id="pwtype"><option value="all">All chars</option><option value="alpha">Letters only</option><option value="alphanum">Letters + Numbers</option></select><button class="m-btn" onclick="genPassword()">GENERATE</button>`},
+  {id:'uuidgen', icon:'🎲', name:'UUID Generator', desc:'Generate RFC 4122 UUID v4 strings', tag:'DEV',
+   body:`<label class="f-label">Count</label><input class="m-input" id="uuidcount" type="number" value="1" min="1" max="10"><button class="m-btn" onclick="genUUID()">GENERATE</button>`},
+  {id:'timestamp', icon:'⏰', name:'Timestamp Converter', desc:'Convert Unix timestamps to dates', tag:'DEV',
+   body:`<label class="f-label">Unix timestamp</label><input class="m-input" id="tsval" placeholder="e.g. 1700000000"><button class="m-btn" onclick="convertTS()">CONVERT</button>`},
+  {id:'markdown', icon:'✍️', name:'Markdown Preview', desc:'Write Markdown and preview HTML', tag:'TXT',
+   body:`<label class="f-label">Markdown</label><textarea class="m-textarea" id="mdin" placeholder="# Hello&#10;**bold**" style="min-height:90px"></textarea><button class="m-btn" onclick="renderMD()">PREVIEW</button><div id="mdout"></div>`},
+  {id:'regex', icon:'🔎', name:'Regex Tester', desc:'Test regular expressions on text', tag:'DEV',
+   body:`<label class="f-label">Pattern</label><input class="m-input" id="rxpat" placeholder="\\d+"><label class="f-label">Test text</label><textarea class="m-textarea" id="rxtext" placeholder="Text to test..."></textarea><button class="m-btn" onclick="testRegex()">TEST</button>`},
+  {id:'colorconv', icon:'🎨', name:'Color Converter', desc:'Convert HEX, RGB and HSL colors', tag:'DSN',
+   body:`<label class="f-label">Color value</label><input class="m-input" id="colorin" placeholder="#00ff41 or rgb(0,255,65)"><button class="m-btn" onclick="convertColor()">CONVERT</button>`},
+  {id:'caseconv', icon:'🔡', name:'Case Converter', desc:'Convert text to any case format', tag:'TXT',
+   body:`<label class="f-label">Text</label><textarea class="m-textarea" id="casein" placeholder="Enter text..."></textarea><label class="f-label">Format</label><select class="m-select" id="casetype"><option value="upper">UPPERCASE</option><option value="lower">lowercase</option><option value="title">Title Case</option><option value="camel">camelCase</option><option value="snake">snake_case</option></select><button class="m-btn" onclick="convertCase()">CONVERT</button>`},
+  {id:'linesorter', icon:'↕️', name:'Line Sorter', desc:'Sort, deduplicate or shuffle lines', tag:'TXT',
+   body:`<label class="f-label">Lines</label><textarea class="m-textarea" id="linein" placeholder="One item per line..." style="min-height:100px"></textarea><label class="f-label">Operation</label><select class="m-select" id="linetype"><option value="asc">Sort A→Z</option><option value="desc">Sort Z→A</option><option value="rev">Reverse</option><option value="dedup">Remove Duplicates</option><option value="shuffle">Shuffle</option></select><button class="m-btn" onclick="sortLines()">PROCESS</button>`},
+  {id:'diff', icon:'📌', name:'Text Diff Checker', desc:'Compare two texts line by line', tag:'TXT',
+   body:`<label class="f-label">Original</label><textarea class="m-textarea" id="diff1" placeholder="Original..." style="min-height:75px"></textarea><label class="f-label">Changed</label><textarea class="m-textarea" id="diff2" placeholder="Changed..." style="min-height:75px"></textarea><button class="m-btn" onclick="diffCheck()">COMPARE</button>`},
+  {id:'findreplace', icon:'🔄', name:'Find & Replace', desc:'Find and replace text in bulk', tag:'TXT',
+   body:`<label class="f-label">Source text</label><textarea class="m-textarea" id="frsrc" placeholder="Paste text..." style="min-height:80px"></textarea><label class="f-label">Find</label><input class="m-input" id="frfind" placeholder="Find..."><label class="f-label">Replace with</label><input class="m-input" id="frrep" placeholder="Replace..."><button class="m-btn" onclick="findReplace()">REPLACE ALL</button>`},
+  {id:'numformat', icon:'🔢', name:'Number Formatter', desc:'Format numbers with commas and currency', tag:'CVT',
+   body:`<label class="f-label">Number</label><input class="m-input" id="numval" placeholder="1234567.89"><label class="f-label">Format</label><select class="m-select" id="numtype"><option value="comma">1,234,567</option><option value="currency">$1,234.00</option><option value="percent">Percent</option><option value="scientific">Scientific</option></select><button class="m-btn" onclick="formatNum()">FORMAT</button>`},
+  {id:'emailval', icon:'📧', name:'Email Validator', desc:'Check if an email address is valid', tag:'WEB',
+   body:`<label class="f-label">Email address</label><input class="m-input" id="emailin" placeholder="user@example.com"><button class="m-btn" onclick="validateEmail()">VALIDATE</button>`},
+  {id:'countdown', icon:'⏳', name:'Countdown Timer', desc:'Set a countdown timer in seconds', tag:'UTL',
+   body:`<label class="f-label">Seconds</label><input class="m-input" id="cdval" type="number" min="1" value="60"><button class="m-btn" onclick="startCountdown()">START TIMER</button><div id="cdout"></div>`},
+  {id:'textbin', icon:'🤖', name:'Text → Binary', desc:'Convert text to binary 0s and 1s', tag:'ENC',
+   body:`<label class="f-label">Text</label><textarea class="m-textarea" id="binin" placeholder="Enter text..."></textarea><button class="m-btn" onclick="textToBin()">CONVERT</button>`},
+  {id:'bintext', icon:'💬', name:'Binary → Text', desc:'Convert binary back to readable text', tag:'ENC',
+   body:`<label class="f-label">Binary (space-separated)</label><textarea class="m-textarea" id="binrev_in" placeholder="01001000 01101001..."></textarea><button class="m-btn" onclick="binToText()">CONVERT</button>`},
+  {id:'iplookup', icon:'🌍', name:'IP Lookup', desc:'Look up details about any IP address', tag:'WEB',
+   body:`<label class="f-label">IP address</label><input class="m-input" id="ipin" placeholder="8.8.8.8"><button class="m-btn" onclick="ipInfo()">LOOKUP</button>`},
+  {id:'tempconv', icon:'🌡️', name:'Temp Converter', desc:'Convert Celsius, Fahrenheit, Kelvin', tag:'CVT',
+   body:`<label class="f-label">Value</label><input class="m-input" id="tempval" type="number" placeholder="Temperature"><label class="f-label">From</label><select class="m-select" id="tempfrom"><option value="c">Celsius (°C)</option><option value="f">Fahrenheit (°F)</option><option value="k">Kelvin (K)</option></select><button class="m-btn" onclick="convertTemp()">CONVERT</button>`},
+  {id:'textrev', icon:'↩️', name:'Text Reverser', desc:'Reverse text by chars, words or lines', tag:'TXT',
+   body:`<label class="f-label">Text</label><textarea class="m-textarea" id="revin" placeholder="Enter text..."></textarea><label class="f-label">Mode</label><select class="m-select" id="revtype"><option value="chars">Reverse Characters</option><option value="words">Reverse Words</option><option value="lines">Reverse Lines</option></select><button class="m-btn" onclick="reverseText()">REVERSE</button>`},
+  {id:'slug', icon:'🔗', name:'Slug Generator', desc:'Convert text into URL-friendly slugs', tag:'WEB',
+   body:`<label class="f-label">Text</label><input class="m-input" id="slugin" placeholder="My Awesome Blog Post!"><button class="m-btn" onclick="genSlug()">GENERATE SLUG</button>`}
+];
+
+// ── RENDER TOOLS ─────────────────────────────────────────────
+function renderTools(list){
+  document.getElementById('toolsList').innerHTML = list.map((t,i) => `
+    <button class="tool-btn ${i===0?'featured':''}" onclick="openTool('${t.id}')">
+      <span class="tool-icon">${t.icon}</span>
+      <span class="tool-name">${t.name}</span>
+      <span class="tool-tag">${t.tag}</span>
+    </button>`).join('');
+}
+renderTools(tools);
+
+function filterTools(q){
+  const f = tools.filter(t =>
+    t.name.toLowerCase().includes(q.toLowerCase()) ||
+    t.desc.toLowerCase().includes(q.toLowerCase()) ||
+    t.tag.toLowerCase().includes(q.toLowerCase())
+  );
+  renderTools(f);
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+function openTool(id){
+  const t = tools.find(x => x.id === id);
+  if(!t) return;
+  document.getElementById('mIcon').textContent = t.icon;
+  document.getElementById('mName').textContent = t.name;
+  document.getElementById('mDesc').textContent = t.desc;
+  document.getElementById('mBody').innerHTML = t.body;
+  document.getElementById('mOutput').style.display = 'none';
+  document.getElementById('mOutput').textContent = '';
+  document.getElementById('modalOverlay').classList.add('active');
+  document.querySelector('.modal').scrollTop = 0;
+}
+function closeModal(e){
+  if(!e || e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+function showOut(txt){
+  const o = document.getElementById('mOutput');
+  o.style.display = 'block';
+  o.textContent = txt;
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal({}); });
+
+// ── PWA INSTALL ──────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').onclick = async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+};
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// ── SERVICE WORKER ───────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+
+// ── TOOL FUNCTIONS ───────────────────────────────────────────
+async function sha256hash(){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(document.getElementById('t1').value));showOut([...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''));}
+async function sha512hash(){const buf=await crypto.subtle.digest('SHA-512',new TextEncoder().encode(document.getElementById('t2').value));showOut([...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''));}
+function b64Encode(){try{showOut(btoa(unescape(encodeURIComponent(document.getElementById('b64e').value))));}catch(e){showOut('ERROR: '+e.message);}}
+function b64Decode(){try{showOut(decodeURIComponent(escape(atob(document.getElementById('b64d').value))));}catch(e){showOut('ERROR: Invalid Base64');}}
+function wordCount(){const t=document.getElementById('wc').value.trim();showOut('Words: '+(t?t.split(/\s+/).length:0)+'\nChars: '+t.length+'\nSentences: '+t.split(/[.!?]+/).filter(Boolean).length+'\nParagraphs: '+t.split(/\n\n+/).filter(Boolean).length);}
+function formatJSON(){try{showOut(JSON.stringify(JSON.parse(document.getElementById('jsonin').value),null,2));}catch(e){showOut('ERROR: '+e.message);}}
+function urlEncode(){showOut(encodeURIComponent(document.getElementById('urle').value));}
+function urlDecode(){try{showOut(decodeURIComponent(document.getElementById('urld').value));}catch(e){showOut('ERROR: Invalid encoding');}}
+function csvToJson(){const lines=document.getElementById('csvin').value.trim().split('\n');const h=lines[0].split(',');showOut(JSON.stringify(lines.slice(1).map(l=>{const v=l.split(',');return Object.fromEntries(h.map((k,i)=>[k.trim(),v[i]?.trim()]));}),null,2));}
+function htmlEscape(){showOut(document.getElementById('htmlin').value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'));}
+function loremGen(){const n=parseInt(document.getElementById('loremNum').value)||1;showOut(Array(n).fill('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.').join('\n\n'));}
+function genPassword(){const len=parseInt(document.getElementById('pwlen').value)||16;const t=document.getElementById('pwtype').value;let c='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';if(t==='alphanum')c+='0123456789';if(t==='all')c+='0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';showOut(Array.from({length:len},()=>c[Math.floor(Math.random()*c.length)]).join(''));}
+function genUUID(){const n=parseInt(document.getElementById('uuidcount').value)||1;showOut(Array.from({length:n},()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16);})).join('\n'));}
+function convertTS(){const ts=parseInt(document.getElementById('tsval').value);if(!ts){showOut('ERROR: Invalid timestamp');return;}const d=new Date(ts*1000);showOut('UTC: '+d.toUTCString()+'\nLocal: '+d.toString()+'\nISO: '+d.toISOString());}
+function renderMD(){const h=document.getElementById('mdin').value.replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code style="background:rgba(0,255,65,0.1);padding:0.1em 0.3em;border-radius:3px">$1</code>').replace(/\n/g,'<br>');const o=document.getElementById('mdout');o.style.display='block';o.innerHTML=h;}
+function testRegex(){try{const m=[...document.getElementById('rxtext').value.matchAll(new RegExp(document.getElementById('rxpat').value,'g'))].map(x=>x[0]);showOut(m.length?'Found '+m.length+' match(es):\n'+[...new Set(m)].join('\n'):'No matches found');}catch(e){showOut('ERROR: '+e.message);}}
+function convertColor(){const v=document.getElementById('colorin').value.trim();let r,g,b;if(v.startsWith('#')){const h=v.slice(1);r=parseInt(h.slice(0,2),16);g=parseInt(h.slice(2,4),16);b=parseInt(h.slice(4,6),16);}else if(v.startsWith('rgb')){[r,g,b]=v.match(/\d+/g).map(Number);}else{showOut('Enter HEX or RGB');return;}const hex='#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');const mx=Math.max(r,g,b)/255,mn=Math.min(r,g,b)/255,l=(mx+mn)/2;const d=mx-mn,s=d?d/(1-Math.abs(2*l-1)):0;let h=0;if(d){if(mx===r/255)h=((g-b)/255/d)%6;else if(mx===g/255)h=(b-r)/255/d+2;else h=(r-g)/255/d+4;}h=Math.round(h*60);if(h<0)h+=360;showOut('HEX: '+hex+'\nRGB: rgb('+r+','+g+','+b+')\nHSL: hsl('+h+','+Math.round(s*100)+'%,'+Math.round(l*100)+'%)');}
+function convertCase(){const t=document.getElementById('casein').value,f=document.getElementById('casetype').value;showOut(f==='upper'?t.toUpperCase():f==='lower'?t.toLowerCase():f==='title'?t.replace(/\b\w/g,c=>c.toUpperCase()):f==='camel'?t.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g,(_,c)=>c.toUpperCase()):t.toLowerCase().replace(/\s+/g,'_'));}
+function sortLines(){let l=document.getElementById('linein').value.split('\n');const f=document.getElementById('linetype').value;if(f==='asc')l.sort();else if(f==='desc')l.sort().reverse();else if(f==='rev')l.reverse();else if(f==='dedup')l=[...new Set(l)];else l.sort(()=>Math.random()-0.5);showOut(l.join('\n'));}
+function diffCheck(){const a=document.getElementById('diff1').value.split('\n'),b=document.getElementById('diff2').value.split('\n');let o='';for(let i=0;i<Math.max(a.length,b.length);i++){if(a[i]===b[i])o+='  '+(a[i]||'')+'\n';else{if(a[i]!==undefined)o+='- '+a[i]+'\n';if(b[i]!==undefined)o+='+ '+b[i]+'\n';}}showOut(o||'No differences found!');}
+function findReplace(){const s=document.getElementById('frsrc').value,f=document.getElementById('frfind').value,r=document.getElementById('frrep').value;if(!f){showOut('Enter text to find');return;}const c=(s.match(new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;showOut('Replaced '+c+' occurrence(s):\n\n'+s.split(f).join(r));}
+function formatNum(){const v=parseFloat(document.getElementById('numval').value.replace(/,/g,''));if(isNaN(v)){showOut('Invalid number');return;}const t=document.getElementById('numtype').value;if(t==='comma')showOut(v.toLocaleString('en-US'));else if(t==='currency')showOut(v.toLocaleString('en-US',{style:'currency',currency:'USD'}));else if(t==='percent')showOut((v/100).toLocaleString('en-US',{style:'percent',minimumFractionDigits:2}));else showOut(v.toExponential(2));}
+function validateEmail(){const e=document.getElementById('emailin').value.trim(),v=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);showOut(v?'✅ VALID\nUser: '+e.split('@')[0]+'\nDomain: '+e.split('@')[1]:'❌ INVALID email address');}
+let cdTimer=null;
+function startCountdown(){let s=parseInt(document.getElementById('cdval').value)||60;const o=document.getElementById('cdout');o.style.display='block';o.style.color='#00ff41';if(cdTimer)clearInterval(cdTimer);const fmt=x=>(Math.floor(x/60)?Math.floor(x/60)+'m ':'')+(x%60)+'s';o.textContent=fmt(s);cdTimer=setInterval(()=>{s--;o.textContent=fmt(s);if(s<=0){clearInterval(cdTimer);o.textContent='DONE ✓';o.style.color='#a855f7';}},1000);}
+function textToBin(){showOut(document.getElementById('binin').value.split('').map(c=>c.charCodeAt(0).toString(2).padStart(8,'0')).join(' '));}
+function binToText(){try{showOut(document.getElementById('binrev_in').value.trim().split(/\s+/).map(b=>String.fromCharCode(parseInt(b,2))).join(''));}catch(e){showOut('ERROR: Invalid binary');}}
+async function ipInfo(){const ip=document.getElementById('ipin').value.trim();showOut('Looking up...');try{const r=await fetch('https://ipapi.co/'+ip+'/json/');const d=await r.json();if(d.error){showOut('Error: '+d.reason);return;}showOut('IP: '+d.ip+'\nCity: '+d.city+'\nRegion: '+d.region+'\nCountry: '+d.country_name+'\nTimezone: '+d.timezone+'\nISP: '+d.org);}catch(e){showOut('ERROR: Could not fetch (check connection)');}}
+function convertTemp(){const v=parseFloat(document.getElementById('tempval').value);if(isNaN(v)){showOut('Enter a number');return;}const f=document.getElementById('tempfrom').value;let c,fa,k;if(f==='c'){c=v;fa=c*9/5+32;k=c+273.15;}else if(f==='f'){fa=v;c=(fa-32)*5/9;k=c+273.15;}else{k=v;c=k-273.15;fa=c*9/5+32;}showOut('Celsius: '+c.toFixed(2)+'°C\nFahrenheit: '+fa.toFixed(2)+'°F\nKelvin: '+k.toFixed(2)+'K');}
+function reverseText(){const t=document.getElementById('revin').value,m=document.getElementById('revtype').value;showOut(m==='chars'?t.split('').reverse().join(''):m==='words'?t.split(' ').reverse().join(' '):t.split('\n').reverse().join('\n'));}
+function genSlug(){showOut(document.getElementById('slugin').value.toLowerCase().trim().replace(/[^\w\s-]/g,'').replace(/[\s_-]+/g,'-').replace(/^-+|-+$/g,''));}
+</script>
+</body>
+</html>
