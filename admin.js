@@ -1,4 +1,3 @@
-
 (function () {
 
 const ADMIN_KEY = 'francis_admin';
@@ -451,4 +450,4 @@ overlay.innerHTML = `
         <div class="adm-card-title">🔐 CHANGE PASSWORD</div>
         <label class="adm-lbl">CURRENT PASSWORD</label>
         <input class="adm-input" id="pass-old" type="password" placeholder="Current password">
-        <label
+        <label 
