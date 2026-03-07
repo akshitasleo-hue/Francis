@@ -1,453 +1,314 @@
+// ╔═══════════════════════════════════════════════════════════════════╗
+// ║   FRANCIS HACKER ADMIN PANEL v3.0 — MAXIMUM OVERDRIVE            ║
+// ║   Ctrl×3 (desktop) | Tap FRANCIS logo ×3 (mobile)                ║
+// ╚═══════════════════════════════════════════════════════════════════╝
+(function(){
+'use strict';
 
+const ADMIN_KEY='francis_admin', PASS_KEY='francis_admin_pass', LOG_KEY='francis_visitor_log';
+const NOTE_KEY='francis_notes', VAULT_KEY='francis_vault', DEFAULT_PASS='francis2025';
 
-(function () {
+const ls  = k     => { try{return JSON.parse(localStorage.getItem(k));}catch{return null;} };
+const lss = (k,v) => { try{localStorage.setItem(k,JSON.stringify(v));}catch{} };
+const GA  = ()    => ls(ADMIN_KEY)||{};
+const SA  = d     => lss(ADMIN_KEY, Object.assign(GA(),d));
+const GM  = ()    => { try{return JSON.parse(localStorage.getItem('francis_monitor')||'{}');}catch{return{};} };
+const fmt = n     => (n||0).toLocaleString();
+const esc = s     => String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const fmtT= s     => { if(!s||s<1)return'0s';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m'; };
+const hex = ()    => Math.random().toString(16).slice(2,10).toUpperCase();
+const uid = ()    => [hex(),hex(),hex(),hex()].join('-');
 
-const ADMIN_KEY = 'francis_admin';
-const PASS_KEY  = 'francis_admin_pass';
-const LOG_KEY   = 'francis_visitor_log';
-const DEFAULT_PASS = 'francis2025';
+// log visit
+(()=>{ const l=ls(LOG_KEY)||[]; l.push({t:Date.now(),ua:navigator.userAgent.slice(0,80),tz:Intl.DateTimeFormat().resolvedOptions().timeZone,scr:screen.width+'x'+screen.height}); if(l.length>300)l.splice(0,l.length-300); lss(LOG_KEY,l); })();
 
-// ── UTILS ──────────────────────────────────────────────────────
-function ls(k)      { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
-function lss(k,v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-function getAdmin() { return ls(ADMIN_KEY) || {}; }
-function setAdmin(d){ lss(ADMIN_KEY, d); }
-function getMon()   { try { return JSON.parse(localStorage.getItem('francis_monitor') || '{}'); } catch { return {}; } }
-function fmt(n)     { return (n||0).toLocaleString(); }
-function fmtTime(s) { if(!s)return'0s'; if(s<60)return s+'s'; if(s<3600)return Math.floor(s/60)+'m'; return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m'; }
+// ═══════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════
+const CSS = document.createElement('style');
+CSS.textContent = `
+:root{--g:#00ff41;--g2:#00cc33;--g3:#006615;--g4:#003a0d;--g5:#001a00;--bg:#020a02;--red:#ff3333;--yl:#ffcc00;--bl:#00aaff;--pur:#cc44ff;}
+*{box-sizing:border-box;}
+#adm{display:none;position:fixed;inset:0;z-index:99999;background:#000;font-family:'Courier New',monospace;overflow:hidden;flex-direction:column;}
+#adm.on{display:flex;}
 
-// ── LOG THIS VISIT ──────────────────────────────────────────────
-(function logVisit() {
-  const logs = ls(LOG_KEY) || [];
-  logs.push({ time: Date.now(), date: new Date().toLocaleString(), ua: navigator.userAgent.slice(0,60), path: location.pathname });
-  if (logs.length > 200) logs.splice(0, logs.length - 200);
-  lss(LOG_KEY, logs);
-})();
+/* SCANLINE OVERLAY */
+#adm::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:1;animation:scanMove 8s linear infinite;}
+@keyframes scanMove{from{background-position:0 0}to{background-position:0 100%}}
 
-// ── STYLES ──────────────────────────────────────────────────────
-const style = document.createElement('style');
-style.textContent = `
-#adm-overlay {
-  display:none; position:fixed; inset:0; z-index:99999;
-  background:rgba(0,0,0,.96); font-family:'Courier New',Courier,monospace;
-  overflow:hidden;
-}
-#adm-overlay.on { display:flex; flex-direction:column; }
+/* BOOT */
+#adm-boot{position:absolute;inset:0;background:#000;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px;}
+#adm-boot.gone{display:none;}
+#boot-ascii{color:var(--g);font-size:.55rem;line-height:1.3;text-align:center;text-shadow:0 0 8px var(--g);margin-bottom:8px;}
+#boot-log{width:min(440px,90vw);min-height:200px;font-size:.65rem;color:var(--g);line-height:1.7;text-align:left;}
+#boot-bar-wrap{width:min(440px,90vw);background:var(--g5);border:1px solid var(--g4);border-radius:3px;height:6px;overflow:hidden;}
+#boot-bar{height:6px;background:var(--g);width:0%;transition:width .08s;}
+#boot-status{font-size:.55rem;color:var(--g3);letter-spacing:2px;margin-top:2px;}
 
-/* TOP BAR */
-#adm-bar {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 16px; height:50px; background:rgba(5,13,5,.99);
-  border-bottom:2px solid #00ff41; flex-shrink:0;
-}
-#adm-bar-left { display:flex; align-items:center; gap:10px; }
-#adm-badge {
-  background:#00ff41; color:#000; font-size:.62rem; font-weight:bold;
-  letter-spacing:2px; padding:3px 9px; border-radius:4px;
-}
-#adm-bar-title { font-size:.9rem; font-weight:bold; color:#00ff41; text-shadow:0 0 8px #00ff41; letter-spacing:2px; }
-#adm-bar-sub { font-size:.55rem; color:#006615; letter-spacing:1px; }
-#adm-close {
-  background:none; border:1.5px solid #003a0d; color:#006615;
-  width:30px; height:30px; border-radius:8px; cursor:pointer;
-  font-size:.9rem; font-family:monospace; display:flex; align-items:center; justify-content:center;
-  transition:all .18s;
-}
-#adm-close:hover { border-color:#ff4444; color:#ff4444; }
+/* PASS */
+#adm-pass{position:absolute;inset:0;background:rgba(0,0,0,.97);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+#adm-pass.gone{display:none;}
+.skull-ring{width:80px;height:80px;border-radius:50%;border:2px solid var(--g4);display:flex;align-items:center;justify-content:center;font-size:2.2rem;animation:skullSpin 4s linear infinite;box-shadow:0 0 20px var(--g4);}
+@keyframes skullSpin{0%,100%{box-shadow:0 0 10px var(--g4)}50%{box-shadow:0 0 30px var(--g)}}
+#pass-title{font-size:1.1rem;font-weight:bold;color:var(--g);text-shadow:0 0 16px var(--g);letter-spacing:4px;animation:glitch 3s infinite;}
+@keyframes glitch{0%,92%,100%{text-shadow:0 0 12px var(--g)}93%{text-shadow:-3px 0 var(--red),3px 0 var(--bl);transform:skewX(-3deg)}95%{text-shadow:3px 0 var(--red),-3px 0 var(--bl);transform:skewX(3deg)}97%{text-shadow:0 0 12px var(--g);transform:none}}
+#pass-inp{width:240px;padding:12px 16px;background:rgba(0,255,65,.03);border:2px solid var(--g4);border-radius:10px;color:var(--g);font-family:'Courier New',monospace;font-size:1.1rem;text-align:center;outline:none;letter-spacing:6px;}
+#pass-inp:focus{border-color:var(--g);box-shadow:0 0 14px rgba(0,255,65,.3);}
+#pass-err{font-size:.65rem;color:var(--red);height:16px;letter-spacing:1px;}
+#pass-tries{font-size:.58rem;color:var(--g4);letter-spacing:1px;}
+.pass-dots{display:flex;gap:6px;justify-content:center;}
+.pass-dot{width:8px;height:8px;border-radius:50%;background:var(--g4);transition:all .3s;}
+.pass-dot.lit{background:var(--g);box-shadow:0 0 8px var(--g);}
+
+/* BAR */
+#adm-bar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:46px;background:var(--bg);border-bottom:2px solid var(--g);flex-shrink:0;position:relative;z-index:2;}
+#adm-bar::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g),transparent);animation:topScan 4s infinite;}
+@keyframes topScan{0%,100%{opacity:.4}50%{opacity:1}}
+.bar-left{display:flex;align-items:center;gap:8px;}
+#adm-logo-pill{background:var(--g);color:#000;font-size:.6rem;font-weight:bold;letter-spacing:2px;padding:3px 9px;border-radius:20px;animation:pillPulse 2s infinite;}
+@keyframes pillPulse{0%,100%{box-shadow:0 0 6px var(--g)}50%{box-shadow:0 0 18px var(--g),0 0 30px rgba(0,255,65,.3)}}
+#adm-bar-title{font-size:.82rem;font-weight:bold;color:var(--g);text-shadow:0 0 10px var(--g);letter-spacing:2px;}
+#adm-live-time{font-size:.58rem;color:var(--g3);letter-spacing:1px;}
+.bar-right{display:flex;align-items:center;gap:6px;}
+#adm-status-row{display:flex;gap:5px;align-items:center;}
+.sdot{width:7px;height:7px;border-radius:50%;animation:sdotBlink 2s infinite;}
+.sdot.green{background:var(--g);box-shadow:0 0 6px var(--g);}
+.sdot.yellow{background:var(--yl);box-shadow:0 0 6px var(--yl);}
+.sdot.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+@keyframes sdotBlink{0%,100%{opacity:1}50%{opacity:.3}}
+#adm-session-time{font-size:.56rem;color:var(--g3);letter-spacing:1px;}
+.xbtn{background:none;border:1.5px solid var(--g4);color:var(--g3);width:26px;height:26px;border-radius:6px;cursor:pointer;font-family:monospace;font-size:.8rem;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.xbtn:hover{border-color:var(--red);color:var(--red);}
 
 /* TABS */
-#adm-tabs {
-  display:flex; gap:4px; padding:10px 14px 0;
-  background:rgba(5,13,5,.99); border-bottom:1px solid #003a0d; flex-shrink:0;
-  overflow-x:auto;
-}
-#adm-tabs::-webkit-scrollbar { display:none; }
-.adm-tab {
-  background:none; border:none; border-bottom:2.5px solid transparent;
-  color:#006615; font-family:'Courier New',monospace; font-size:.68rem;
-  letter-spacing:1.5px; padding:8px 14px; cursor:pointer; white-space:nowrap;
-  text-transform:uppercase; transition:all .15s; flex-shrink:0;
-}
-.adm-tab:hover { color:#00cc33; }
-.adm-tab.on { color:#00ff41; border-bottom-color:#00ff41; text-shadow:0 0 6px #00ff41; }
+#adm-tabs{display:flex;background:rgba(2,10,2,.99);border-bottom:1px solid var(--g4);flex-shrink:0;overflow-x:auto;scrollbar-width:none;z-index:2;}
+#adm-tabs::-webkit-scrollbar{display:none;}
+.atab{background:none;border:none;border-bottom:2.5px solid transparent;color:var(--g3);font-family:'Courier New',monospace;font-size:.6rem;letter-spacing:1.5px;padding:9px 12px;cursor:pointer;white-space:nowrap;text-transform:uppercase;transition:all .15s;flex-shrink:0;border-right:1px solid var(--g5);}
+.atab:hover{color:var(--g2);background:rgba(0,255,65,.03);}
+.atab.on{color:var(--g);border-bottom-color:var(--g);background:rgba(0,255,65,.05);text-shadow:0 0 8px var(--g);}
 
 /* BODY */
-#adm-body {
-  flex:1; overflow-y:auto; padding:16px;
-  background:transparent;
-}
-#adm-body::-webkit-scrollbar { width:4px; }
-#adm-body::-webkit-scrollbar-thumb { background:#006615; border-radius:2px; }
-
-/* SECTIONS */
-.adm-section { display:none; }
-.adm-section.on { display:block; }
+#adm-body{flex:1;overflow-y:auto;padding:12px;background:var(--bg);scrollbar-width:thin;scrollbar-color:var(--g4) transparent;z-index:2;}
+#adm-body::-webkit-scrollbar{width:3px;}
+#adm-body::-webkit-scrollbar-thumb{background:var(--g4);border-radius:2px;}
+.asec{display:none;}
+.asec.on{display:block;}
 
 /* CARDS */
-.adm-card {
-  background:rgba(5,18,5,.88); border:1.5px solid #003a0d;
-  border-radius:14px; padding:15px 14px; margin-bottom:12px;
-}
-.adm-card-title {
-  font-size:.72rem; color:#00aa22; letter-spacing:2px;
-  text-transform:uppercase; margin-bottom:12px;
-  display:flex; align-items:center; gap:8px;
-}
+.ac{background:rgba(5,18,5,.65);border:1.5px solid var(--g4);border-radius:12px;padding:13px 12px;margin-bottom:10px;position:relative;overflow:hidden;}
+.ac::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:1px;background:linear-gradient(90deg,transparent,var(--g3),transparent);animation:cardScan 6s infinite;}
+@keyframes cardScan{from{left:-60%}to{left:160%}}
+.act{font-size:.6rem;color:var(--g2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.abadge{background:rgba(0,255,65,.1);border:1px solid var(--g4);border-radius:3px;padding:1px 5px;font-size:.5rem;color:var(--g3);}
 
-/* STAT GRID */
-.adm-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:12px; }
-.adm-stats.four { grid-template-columns:repeat(4,1fr); }
-.adm-stat {
-  background:rgba(0,0,0,.5); border:1.5px solid #003a0d; border-radius:10px;
-  padding:10px 8px; text-align:center;
-}
-.adm-stat-n { font-size:1.3rem; font-weight:bold; color:#00ff41; text-shadow:0 0 8px #00ff41; }
-.adm-stat-l { font-size:.52rem; color:#006615; letter-spacing:1.5px; margin-top:2px; }
+/* STATS GRID */
+.as{display:grid;gap:6px;margin-bottom:10px;}
+.as2{grid-template-columns:repeat(2,1fr);}
+.as3{grid-template-columns:repeat(3,1fr);}
+.as4{grid-template-columns:repeat(4,1fr);}
+.astat{background:rgba(0,0,0,.6);border:1.5px solid var(--g4);border-radius:9px;padding:9px 6px;text-align:center;transition:all .2s;cursor:default;}
+.astat:hover{border-color:var(--g2);transform:translateY(-1px);}
+.asn{font-size:1.1rem;font-weight:bold;color:var(--g);text-shadow:0 0 8px var(--g);}
+.asl{font-size:.46rem;color:var(--g3);letter-spacing:1.5px;margin-top:1px;}
 
-/* CHART BAR */
-.adm-bar-wrap { margin-bottom:6px; }
-.adm-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
-.adm-bar-lbl { font-size:.65rem; color:#00cc33; min-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.adm-bar-track { flex:1; background:rgba(0,0,0,.4); border-radius:3px; height:7px; }
-.adm-bar-fill { height:7px; border-radius:3px; background:linear-gradient(to right,#00ff41,#00aa22); transition:width .5s; }
-.adm-bar-val { font-size:.6rem; color:#006615; min-width:24px; text-align:right; }
+/* BARS */
+.brow{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.blbl{font-size:.6rem;color:var(--g2);min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btrack{flex:1;background:rgba(0,0,0,.5);border-radius:3px;height:5px;}
+.bfill{height:5px;border-radius:3px;transition:width .6s;}
+.bfill.green{background:linear-gradient(90deg,var(--g),var(--g2));}
+.bfill.blue{background:linear-gradient(90deg,var(--bl),#0066cc);}
+.bfill.red{background:linear-gradient(90deg,var(--red),#cc0000);}
+.bfill.purple{background:linear-gradient(90deg,var(--pur),#7c3aed);}
+.bval{font-size:.56rem;color:var(--g3);min-width:20px;text-align:right;}
 
 /* INPUTS */
-.adm-lbl { font-size:.6rem; color:#00aa22; letter-spacing:2px; display:block; margin-bottom:5px; }
-.adm-input, .adm-textarea, .adm-select {
-  width:100%; padding:9px 11px; background:rgba(0,0,0,.6);
-  border:1.5px solid #003a0d; border-radius:8px; color:#00ff41;
-  font-family:'Courier New',monospace; font-size:.78rem; outline:none;
-  margin-bottom:10px; transition:border-color .18s;
-}
-.adm-textarea { resize:vertical; min-height:70px; }
-.adm-input:focus,.adm-textarea:focus,.adm-select:focus { border-color:#00ff41; }
-.adm-input::placeholder,.adm-textarea::placeholder { color:#003a0d; }
-.adm-select option { background:#050d05; }
+.al{font-size:.57rem;color:var(--g2);letter-spacing:2px;display:block;margin-bottom:4px;}
+.ai,.ata,.asel{width:100%;padding:8px 10px;background:rgba(0,0,0,.75);border:1.5px solid var(--g4);border-radius:7px;color:var(--g);font-family:'Courier New',monospace;font-size:.75rem;outline:none;margin-bottom:8px;transition:border-color .18s;}
+.ata{resize:vertical;min-height:65px;}
+.ai:focus,.ata:focus,.asel:focus{border-color:var(--g);box-shadow:0 0 6px rgba(0,255,65,.15);}
+.ai::placeholder,.ata::placeholder{color:var(--g5);}
+.asel option{background:#020a02;}
 
 /* BUTTONS */
-.adm-btn {
-  padding:10px 18px; background:#00ff41; border:none; border-radius:8px;
-  color:#000; font-family:'Courier New',monospace; font-weight:bold;
-  font-size:.78rem; letter-spacing:1.5px; cursor:pointer;
-  transition:opacity .18s; box-shadow:0 0 12px rgba(0,255,65,.25);
-}
-.adm-btn:hover { opacity:.82; }
-.adm-btn.ghost {
-  background:transparent; border:1.5px solid #003a0d; color:#006615;
-  box-shadow:none;
-}
-.adm-btn.ghost:hover { border-color:#00aa22; color:#00aa22; }
-.adm-btn.danger {
-  background:transparent; border:1.5px solid #660000; color:#aa2222; box-shadow:none;
-}
-.adm-btn.danger:hover { border-color:#ff4444; color:#ff4444; }
-.adm-btn.full { width:100%; margin-bottom:8px; }
-.adm-btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+.ab{padding:8px 14px;background:var(--g);border:none;border-radius:7px;color:#000;font-family:'Courier New',monospace;font-weight:bold;font-size:.7rem;letter-spacing:1.5px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.ab:hover{opacity:.82;box-shadow:0 0 12px rgba(0,255,65,.3);}
+.ab.full{width:100%;margin-bottom:6px;}
+.ab.ghost{background:transparent;border:1.5px solid var(--g4);color:var(--g3);}
+.ab.ghost:hover{border-color:var(--g2);color:var(--g2);}
+.ab.red{background:transparent;border:1.5px solid #550000;color:#aa2222;}
+.ab.red:hover{border-color:var(--red);color:var(--red);}
+.ab.blue{background:#0066cc;color:#fff;}
+.ab.yellow{background:var(--yl);color:#000;}
+.ab.purple{background:#7c3aed;color:#fff;}
+.abrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
 
-/* TOGGLE SWITCH */
-.adm-toggle-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:9px 12px; background:rgba(0,0,0,.35); border:1px solid #003a0d;
-  border-radius:8px; margin-bottom:6px; cursor:pointer; transition:all .15s;
-}
-.adm-toggle-row:hover { border-color:#00aa22; }
-.adm-toggle-info { flex:1; }
-.adm-toggle-name { font-size:.78rem; color:#00cc33; }
-.adm-toggle-cat  { font-size:.58rem; color:#006615; margin-top:1px; }
-.adm-switch {
-  width:36px; height:20px; background:#003a0d; border-radius:10px;
-  position:relative; flex-shrink:0; transition:background .2s;
-}
-.adm-switch.on { background:#00aa22; }
-.adm-switch::after {
-  content:''; position:absolute; top:3px; left:3px;
-  width:14px; height:14px; background:#fff; border-radius:50%;
-  transition:left .2s;
-}
-.adm-switch.on::after { left:19px; }
+/* TOGGLE */
+.atog{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(0,0,0,.4);border:1px solid var(--g4);border-radius:7px;margin-bottom:5px;cursor:pointer;transition:all .15s;}
+.atog:hover{border-color:var(--g2);}
+.atog-i{flex:1;}
+.atog-n{font-size:.72rem;color:var(--g2);}
+.atog-s{font-size:.54rem;color:var(--g3);margin-top:1px;}
+.asw{width:32px;height:17px;background:var(--g4);border-radius:9px;position:relative;flex-shrink:0;transition:background .2s;}
+.asw.on{background:var(--g2);}
+.asw::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.asw.on::after{left:17px;}
 
-/* LOG TABLE */
-.adm-log-row {
-  display:flex; gap:8px; padding:7px 10px; border-bottom:1px solid #001a00;
-  font-size:.65rem; align-items:flex-start;
-}
-.adm-log-row:hover { background:rgba(0,255,65,.03); }
-.adm-log-time { color:#006615; min-width:90px; flex-shrink:0; }
-.adm-log-info { color:#00aa22; flex:1; word-break:break-all; }
+/* TERMINAL */
+#term-out{background:#000;border:1.5px solid var(--g4);border-radius:8px;padding:10px;font-size:.68rem;color:var(--g);min-height:180px;max-height:280px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:7px;line-height:1.6;}
+#term-out::-webkit-scrollbar{width:3px;}
+#term-out::-webkit-scrollbar-thumb{background:var(--g4);}
+#term-row{display:flex;gap:6px;align-items:center;}
+#term-prompt{font-size:.72rem;color:var(--g);flex-shrink:0;}
+#term-inp{flex:1;background:transparent;border:none;color:var(--g);font-family:'Courier New',monospace;font-size:.72rem;outline:none;caret-color:var(--g);}
 
-/* COLOR SWATCH */
-.adm-color-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
-.adm-swatch {
-  height:42px; border-radius:8px; cursor:pointer; border:2px solid transparent;
-  transition:all .18s; position:relative; display:flex; align-items:center; justify-content:center;
-  font-size:.55rem; font-weight:bold; letter-spacing:1px;
-}
-.adm-swatch.selected { border-color:#ffffff; box-shadow:0 0 12px rgba(255,255,255,.3); }
+/* PACKET VISUALIZER */
+#packet-canvas{width:100%;height:120px;background:#000;border:1.5px solid var(--g4);border-radius:8px;display:block;margin-bottom:8px;}
 
-/* ANNOUNCE */
-.adm-announce-preview {
-  padding:10px 14px; border-radius:8px; margin-top:8px;
-  font-size:.78rem; font-weight:bold; text-align:center;
-  letter-spacing:1px; display:none;
-}
+/* CODE EDITOR */
+#code-editor{width:100%;min-height:220px;background:#000;border:1.5px solid var(--g4);border-radius:8px;color:var(--g);font-family:'Courier New',monospace;font-size:.72rem;padding:10px;outline:none;resize:vertical;line-height:1.7;tab-size:2;}
+#code-editor:focus{border-color:var(--g);}
+#code-output{background:#000;border:1.5px solid var(--g4);border-left:3px solid var(--g);border-radius:8px;padding:10px;font-size:.68rem;color:var(--g2);min-height:60px;white-space:pre-wrap;word-break:break-all;display:none;margin-top:6px;max-height:160px;overflow-y:auto;}
 
-/* PASS SCREEN */
-#adm-pass-screen {
-  display:none; position:absolute; inset:0; z-index:10;
-  background:rgba(5,13,5,.99); align-items:center; justify-content:center;
-  flex-direction:column; gap:14px;
-}
-#adm-pass-screen.on { display:flex; }
-#adm-pass-title { font-size:1.1rem; font-weight:bold; color:#00ff41; text-shadow:0 0 12px #00ff41; letter-spacing:2px; }
-#adm-pass-sub { font-size:.65rem; color:#006615; letter-spacing:1px; }
-#adm-pass-input {
-  width:240px; padding:12px 14px; background:rgba(0,0,0,.7);
-  border:2px solid #00aa22; border-radius:10px; color:#00ff41;
-  font-family:'Courier New',monospace; font-size:1rem; text-align:center;
-  outline:none; letter-spacing:4px;
-}
-#adm-pass-input:focus { border-color:#00ff41; box-shadow:0 0 10px rgba(0,255,65,.3); }
-#adm-pass-err { font-size:.68rem; color:#ff4444; height:18px; letter-spacing:1px; }
+/* CIPHER */
+.cipher-result{background:#000;border:1.5px solid var(--g4);border-left:3px solid var(--g);border-radius:8px;padding:10px;font-size:.7rem;color:var(--g);word-break:break-all;white-space:pre-wrap;margin-top:7px;display:none;max-height:120px;overflow-y:auto;}
+
+/* VAULT */
+.vault-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--g5);font-size:.65rem;}
+.vault-item:hover{background:rgba(0,255,65,.03);}
+.vault-name{color:var(--g);flex:1;font-weight:bold;}
+.vault-val{color:var(--g3);flex:2;word-break:break-all;filter:blur(3px);cursor:pointer;transition:filter .2s;}
+.vault-val:hover{filter:none;}
+.vault-act{display:flex;gap:4px;flex-shrink:0;}
+
+/* THREAT SCANNER */
+#threat-out{background:#000;border:1.5px solid var(--g4);border-radius:8px;padding:10px;font-size:.65rem;line-height:1.9;max-height:220px;overflow-y:auto;margin-top:8px;display:none;}
+.threat-ok{color:var(--g);}
+.threat-warn{color:var(--yl);}
+.threat-crit{color:var(--red);}
+
+/* CRYPTO TICKER */
+.cticker{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--g5);font-size:.68rem;}
+.cticker:hover{background:rgba(0,255,65,.03);}
+.cticker-sym{color:var(--g);font-weight:bold;min-width:50px;}
+.cticker-price{color:var(--g2);min-width:80px;text-align:right;}
+.cticker-chg.up{color:var(--g);}
+.cticker-chg.dn{color:var(--red);}
+.cticker-bar{flex:1;margin:0 10px;}
+
+/* MATRIX RAIN MINI */
+#matrix-mini{border-radius:8px;display:block;width:100%;height:80px;margin-bottom:8px;}
+
+/* LOG */
+.alog{display:flex;gap:7px;padding:6px 9px;border-bottom:1px solid var(--g5);font-size:.6rem;}
+.alog:hover{background:rgba(0,255,65,.02);}
+.alog-t{color:var(--g3);min-width:65px;flex-shrink:0;}
+.alog-i{color:var(--g2);flex:1;word-break:break-all;}
+
+/* THEME SWATCHES */
+.tswatch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;}
+.tswatch{height:38px;border-radius:7px;cursor:pointer;border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:.52rem;font-weight:bold;letter-spacing:1px;transition:all .18s;}
+.tswatch.on{border-color:#fff;box-shadow:0 0 14px rgba(255,255,255,.3);}
+
+/* ANNOUNCE PREV */
+#ann-prev{display:none;padding:8px 12px;border-radius:7px;text-align:center;font-size:.75rem;font-weight:bold;letter-spacing:1px;margin-bottom:8px;}
+
+/* NOTES */
+#notes-ta{width:100%;min-height:200px;background:rgba(0,0,0,.8);border:1.5px solid var(--g4);border-radius:8px;color:var(--g);font-family:'Courier New',monospace;font-size:.72rem;padding:10px;outline:none;resize:vertical;line-height:1.7;}
+#notes-ta:focus{border-color:var(--g);}
+
+/* HR */
+.ahr{border:none;border-top:1px solid var(--g5);margin:9px 0;}
 
 /* NOTIFICATION */
-#adm-notif {
-  position:fixed; top:60px; left:50%; transform:translateX(-50%);
-  background:rgba(5,18,5,.99); border:1.5px solid #00ff41; border-radius:10px;
-  padding:9px 20px; font-size:.75rem; color:#00ff41; letter-spacing:1px;
-  z-index:100001; display:none; white-space:nowrap;
-  box-shadow:0 0 16px rgba(0,255,65,.3);
-}
+#adm-notif{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:rgba(5,18,5,.99);border:1.5px solid var(--g);border-radius:8px;padding:7px 18px;font-size:.7rem;color:var(--g);letter-spacing:1px;z-index:100010;display:none;white-space:nowrap;box-shadow:0 0 16px rgba(0,255,65,.3);}
 
-/* SITE BANNER (announcement shown on page) */
-#francis-announce {
-  display:none; width:100%; text-align:center;
-  padding:10px 16px; font-family:'Courier New',monospace;
-  font-size:.8rem; font-weight:bold; letter-spacing:1px;
-  position:relative; z-index:8999;
-}
+/* PROGRESS RING */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:10px;}
+.ring-svg{transform:rotate(-90deg);}
+.ring-val{font-size:1.3rem;font-weight:bold;color:var(--g);text-shadow:0 0 8px var(--g);margin-top:4px;}
+.ring-lbl{font-size:.52rem;color:var(--g3);letter-spacing:2px;}
+
+/* HEATMAP */
+.heatmap{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-bottom:6px;}
+.hcell{height:16px;border-radius:2px;background:var(--g5);transition:background .3s;}
+
+/* TYPEWRITER */
+.typewriter{overflow:hidden;border-right:2px solid var(--g);white-space:nowrap;animation:typeBlink .8s step-end infinite;}
+@keyframes typeBlink{50%{border-color:transparent}}
+
+/* SKILL BARS */
+.skill-row{margin-bottom:8px;}
+.skill-top{display:flex;justify-content:space-between;font-size:.62rem;color:var(--g2);margin-bottom:3px;}
+.skill-track{background:rgba(0,0,0,.5);border-radius:10px;height:8px;overflow:hidden;}
+.skill-fill{height:8px;border-radius:10px;background:linear-gradient(90deg,var(--g),var(--g2));animation:skillAnim .8s ease both;}
+@keyframes skillAnim{from{width:0%}}
+
+/* RADAR */
+#radar-canvas{display:block;margin:0 auto 10px;}
 `;
-document.head.appendChild(style);
+document.head.appendChild(CSS);
 
-// ── ANNOUNCEMENT BANNER (live on page) ─────────────────────────
-const announceBanner = document.createElement('div');
-announceBanner.id = 'francis-announce';
-document.body.prepend(announceBanner);
-applyAnnounce();
+// ═══════════════════════════════════════════════
+// ANNOUNCE BANNER
+// ═══════════════════════════════════════════════
+const ANN = document.createElement('div');
+ANN.id='fr-ann';
+ANN.style.cssText='display:none;width:100%;text-align:center;padding:8px 16px;font-family:Courier New,monospace;font-size:.75rem;font-weight:bold;letter-spacing:1px;position:relative;z-index:8999;';
+document.body.prepend(ANN);
+applyAnn();
 
-function applyAnnounce() {
-  const d = getAdmin();
-  const el = document.getElementById('francis-announce');
-  if (!el) return;
-  if (d.announceText && d.announceOn) {
-    el.style.display = 'block';
-    el.textContent = d.announceText;
-    el.style.background = d.announceBg || '#00ff41';
-    el.style.color = d.announceColor || '#000';
-  } else {
-    el.style.display = 'none';
-  }
+function applyAnn(){const d=GA();ANN.style.display=(d.annOn&&d.annText)?'block':'none';ANN.textContent=d.annText||'';ANN.style.background=d.annBg||'#00ff41';ANN.style.color=d.annFg||'#000';}
+
+// ═══════════════════════════════════════════════
+// THEMES
+// ═══════════════════════════════════════════════
+const THEMES={
+  green: ['#00ff41','#00cc33','rgba(5,18,5,.85)','#003a0d','#001a00'],
+  blue:  ['#00aaff','#0077cc','rgba(5,10,20,.85)','#003366','#001133'],
+  red:   ['#ff4444','#cc2222','rgba(20,5,5,.85)',  '#660000','#330000'],
+  purple:['#cc44ff','#8800cc','rgba(15,5,25,.85)', '#440066','#220033'],
+  amber: ['#ffaa00','#cc7700','rgba(20,15,5,.85)', '#553300','#221100'],
+  cyan:  ['#00ffee','#00aaaa','rgba(5,18,18,.85)', '#003333','#001111'],
+  orange:['#ff6600','#cc4400','rgba(20,10,5,.85)', '#553300','#221100'],
+  pink:  ['#ff66aa','#cc2277','rgba(20,5,15,.85)', '#550022','#220011'],
+};
+function applyTheme(t){
+  const c=THEMES[t];if(!c)return;
+  const R=document.documentElement.style;
+  R.setProperty('--g',c[0]);R.setProperty('--g2',c[1]);
+  R.setProperty('--g4',c[3]);R.setProperty('--g5',c[4]);
+  document.body.style.color=c[0];
 }
+applyTheme(GA().theme||'green');
 
-// ── THEME APPLY ────────────────────────────────────────────────
-function applyTheme() {
-  const d = getAdmin();
-  if (!d.theme) return;
-  const themes = {
-    green:  { '--tc':'#00ff41', '--tb':'rgba(5,18,5,.88)', '--tbd':'#003a0d', '--ta':'#00aa22' },
-    blue:   { '--tc':'#00aaff', '--tb':'rgba(5,10,20,.88)', '--tbd':'#003a6b', '--ta':'#0066cc' },
-    red:    { '--tc':'#ff4444', '--tb':'rgba(20,5,5,.88)', '--tbd':'#6b0000', '--ta':'#cc2222' },
-    purple: { '--tc':'#cc44ff', '--tb':'rgba(15,5,25,.88)', '--tbd':'#4a0080', '--ta':'#8800cc' },
-    amber:  { '--tc':'#ffaa00', '--tb':'rgba(20,15,5,.88)', '--tbd':'#5a3a00', '--ta':'#cc8800' },
-    cyan:   { '--tc':'#00ffee', '--tb':'rgba(5,18,18,.88)', '--tbd':'#003a38', '--ta':'#00aaaa' },
-    white:  { '--tc':'#ffffff', '--tb':'rgba(10,10,10,.88)', '--tbd':'#333333', '--ta':'#aaaaaa' },
-    pink:   { '--tc':'#ff66aa', '--tb':'rgba(20,5,15,.88)', '--tbd':'#5a0030', '--ta':'#cc2277' },
-  };
-  const t = themes[d.theme];
-  if (!t) return;
-  Object.entries(t).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
-  document.body.style.color = t['--tc'];
-}
-applyTheme();
+// ═══════════════════════════════════════════════
+// BUILD PANEL
+// ═══════════════════════════════════════════════
+const OV=document.createElement('div');
+OV.id='adm';
+OV.innerHTML=`
+<!-- BOOT -->
+<div id="adm-boot">
+  <pre id="boot-ascii">
+███████╗██████╗  █████╗ ███╗   ██╗ ██████╗██╗███████╗
+██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝██║██╔════╝
+█████╗  ██████╔╝███████║██╔██╗ ██║██║     ██║███████╗
+██╔══╝  ██╔══██╗██╔══██║██║╚██╗██║██║     ██║╚════██║
+██║     ██║  ██║██║  ██║██║ ╚████║╚██████╗██║███████║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚═╝╚══════╝</pre>
+  <div id="boot-log"></div>
+  <div id="boot-bar-wrap"><div id="boot-bar"></div></div>
+  <div id="boot-status">INITIALIZING...</div>
+</div>
 
-// ── BUILD PANEL HTML ───────────────────────────────────────────
-const overlay = document.createElement('div');
-overlay.id = 'adm-overlay';
-overlay.innerHTML = `
-  <div id="adm-pass-screen" class="on">
-    <div style="font-size:2rem">🔐</div>
-    <div id="adm-pass-title">ADMIN ACCESS</div>
-    <div id="adm-pass-sub">ENTER PASSWORD</div>
-    <input id="adm-pass-input" type="password" placeholder="••••••••••"
-      onkeydown="if(event.key==='Enter')admCheckPass()"
-      autocomplete="off">
-    <button class="adm-btn" onclick="admCheckPass()">UNLOCK</button>
-    <div id="adm-pass-err"></div>
-    <button class="adm-btn ghost" onclick="admClose()" style="font-size:.65rem;padding:6px 14px">CANCEL</button>
-  </div>
-
-  <div id="adm-bar">
-    <div id="adm-bar-left">
-      <span id="adm-badge">ADMIN</span>
-      <div>
-        <div id="adm-bar-title">FRANCIS ADMIN</div>
-        <div id="adm-bar-sub">CONTROL PANEL</div>
-      </div>
-    </div>
-    <button id="adm-close" onclick="admClose()">✕</button>
-  </div>
-
-  <div id="adm-tabs">
-    <button class="adm-tab on" onclick="admTab('analytics')">📊 Analytics</button>
-    <button class="adm-tab" onclick="admTab('tools')">🛠️ Tools</button>
-    <button class="adm-tab" onclick="admTab('theme')">🎨 Theme</button>
-    <button class="adm-tab" onclick="admTab('announce')">📢 Announce</button>
-    <button class="adm-tab" onclick="admTab('content')">📝 Content</button>
-    <button class="adm-tab" onclick="admTab('logs')">👥 Logs</button>
-    <button class="adm-tab" onclick="admTab('data')">💾 Data</button>
-    <button class="adm-tab" onclick="admTab('settings')">⚙️ Settings</button>
-  </div>
-
-  <div id="adm-body">
-
-    <!-- ── ANALYTICS ── -->
-    <div class="adm-section on" id="adm-analytics">
-      <div class="adm-stats four" id="adm-top-stats"></div>
-      <div class="adm-card">
-        <div class="adm-card-title">📈 TOP TOOLS</div>
-        <div id="adm-top-tools"></div>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">🕐 HOURLY ACTIVITY</div>
-        <div id="adm-hourly"></div>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">📅 7-DAY VISITS</div>
-        <div id="adm-daily"></div>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">🔍 TOP SEARCHES</div>
-        <div id="adm-searches"></div>
-      </div>
-    </div>
-
-    <!-- ── TOOLS MANAGER ── -->
-    <div class="adm-section" id="adm-tools">
-      <div class="adm-card">
-        <div class="adm-card-title">🛠️ ENABLE / DISABLE TOOLS</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <button class="adm-btn ghost" onclick="admToggleAll(true)" style="flex:1;font-size:.65rem">ENABLE ALL</button>
-          <button class="adm-btn ghost" onclick="admToggleAll(false)" style="flex:1;font-size:.65rem">DISABLE ALL</button>
-        </div>
-        <div id="adm-tool-list"></div>
-      </div>
-    </div>
-
-    <!-- ── THEME ── -->
-    <div class="adm-section" id="adm-theme">
-      <div class="adm-card">
-        <div class="adm-card-title">🎨 COLOR THEME</div>
-        <div class="adm-color-grid" id="adm-theme-grid"></div>
-        <button class="adm-btn full" onclick="admSaveTheme()">APPLY THEME</button>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">✨ EFFECTS</div>
-        <div class="adm-toggle-row" onclick="admToggleEffect('matrix')">
-          <div class="adm-toggle-info">
-            <div class="adm-toggle-name">Matrix Rain Animation</div>
-            <div class="adm-toggle-cat">Background falling code effect</div>
-          </div>
-          <div class="adm-switch on" id="fx-matrix"></div>
-        </div>
-        <div class="adm-toggle-row" onclick="admToggleEffect('scanline')">
-          <div class="adm-toggle-info">
-            <div class="adm-toggle-name">Scanline Overlay</div>
-            <div class="adm-toggle-cat">CRT screen scanline effect</div>
-          </div>
-          <div class="adm-switch on" id="fx-scanline"></div>
-        </div>
-        <div class="adm-toggle-row" onclick="admToggleEffect('glow')">
-          <div class="adm-toggle-info">
-            <div class="adm-toggle-name">Text Glow Effects</div>
-            <div class="adm-toggle-cat">Neon glow on headings</div>
-          </div>
-          <div class="adm-switch on" id="fx-glow"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── ANNOUNCEMENT ── -->
-    <div class="adm-section" id="adm-announce">
-      <div class="adm-card">
-        <div class="adm-card-title">📢 ANNOUNCEMENT BANNER</div>
-        <label class="adm-lbl">BANNER TEXT</label>
-        <textarea class="adm-textarea" id="ann-text" placeholder="Type your announcement..."></textarea>
-        <label class="adm-lbl">BACKGROUND COLOR</label>
-        <input class="adm-input" id="ann-bg" type="color" value="#00ff41" style="height:42px;padding:4px;cursor:pointer">
-        <label class="adm-lbl">TEXT COLOR</label>
-        <input class="adm-input" id="ann-color" type="color" value="#000000" style="height:42px;padding:4px;cursor:pointer">
-        <div class="adm-announce-preview" id="ann-preview">Preview text</div>
-        <div class="adm-btn-row" style="margin-top:8px">
-          <button class="adm-btn" onclick="admPreviewAnn()" style="flex:1">PREVIEW</button>
-          <button class="adm-btn" onclick="admSaveAnn(true)" style="flex:1">SHOW ON SITE</button>
-          <button class="adm-btn danger" onclick="admSaveAnn(false)" style="flex:1">HIDE</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── CONTENT ── -->
-    <div class="adm-section" id="adm-content">
-      <div class="adm-card">
-        <div class="adm-card-title">📝 SITE CONTENT</div>
-        <label class="adm-lbl">SITE TITLE (hero heading)</label>
-        <input class="adm-input" id="cnt-title" placeholder="Hey, I am FRANCIS">
-        <label class="adm-lbl">SITE DESCRIPTION</label>
-        <textarea class="adm-textarea" id="cnt-desc" placeholder="This is my website..."></textarea>
-        <label class="adm-lbl">FOOTER TEXT</label>
-        <input class="adm-input" id="cnt-footer" placeholder="FRANCIS // ALL TOOLS RUN OFFLINE">
-        <label class="adm-lbl">DESIGNER NAME</label>
-        <input class="adm-input" id="cnt-designer" placeholder="Akshit Singh">
-        <button class="adm-btn full" onclick="admSaveContent()">SAVE & APPLY</button>
-      </div>
-    </div>
-
-    <!-- ── VISITOR LOGS ── -->
-    <div class="adm-section" id="adm-logs">
-      <div class="adm-card">
-        <div class="adm-card-title">👥 VISITOR LOG <span id="adm-log-count" style="color:#006615;font-size:.6rem"></span></div>
-        <div class="adm-btn-row" style="margin-bottom:10px">
-          <button class="adm-btn ghost" onclick="admRefreshLogs()" style="flex:1;font-size:.65rem">REFRESH</button>
-          <button class="adm-btn danger" onclick="admClearLogs()" style="flex:1;font-size:.65rem">CLEAR LOGS</button>
-        </div>
-        <div id="adm-log-list" style="max-height:360px;overflow-y:auto;border:1px solid #003a0d;border-radius:8px"></div>
-      </div>
-    </div>
-
-    <!-- ── DATA ── -->
-    <div class="adm-section" id="adm-data">
-      <div class="adm-card">
-        <div class="adm-card-title">💾 EXPORT DATA</div>
-        <button class="adm-btn full" onclick="admExport('all')">EXPORT ALL DATA (JSON)</button>
-        <button class="adm-btn full ghost" onclick="admExport('analytics')">EXPORT ANALYTICS ONLY</button>
-        <button class="adm-btn full ghost" onclick="admExport('logs')">EXPORT VISITOR LOGS</button>
-        <button class="adm-btn full ghost" onclick="admExport('settings')">EXPORT SETTINGS</button>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">📂 IMPORT DATA</div>
-        <label class="adm-lbl">PASTE JSON DATA</label>
-        <textarea class="adm-textarea" id="imp-data" placeholder='{"key":"value"}'></textarea>
-        <button class="adm-btn full" onclick="admImport()">IMPORT & APPLY</button>
-      </div>
-      <div class="adm-card">
-        <div class="adm-card-title">🗑️ RESET DATA</div>
-        <button class="adm-btn full danger" onclick="admReset('analytics')">RESET ANALYTICS</button>
-        <button class="adm-btn full danger" onclick="admReset('logs')">CLEAR ALL LOGS</button>
-        <button class="adm-btn full danger" onclick="admReset('all')">FACTORY RESET ALL DATA</button>
-      </div>
-    </div>
-
-    <!-- ── SETTINGS ── -->
-    <div class="adm-section" id="adm-settings">
-      <div class="adm-card">
-        <div class="adm-card-title">🔐 CHANGE PASSWORD</div>
-        <label class="adm-lbl">CURRENT PASSWO
+<!-- PASS -->
+<div id="adm-pass" class="gone">
+  <div class="skull-ring">💀</div>
+  <div id="pass-title">AUTHENTICATION REQUIRED</div>
+  <div style="font-size:.6rem;color:var(--g3);letter-spacing:2px">ENTER ADMIN PASSWORD</div>
+  <div class="pass-dots" id="pass-dots"></div>
+  <input id="pass-inp" type="password" placeholder="••••••••" autocomplete="off"
+    oninput="passInput(this)" onkeydown="if(event.key==='Enter')admUnlock()">
+  <button class="ab" onclick="admUnlock()" st
