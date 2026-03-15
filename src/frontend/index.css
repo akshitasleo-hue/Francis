@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Figtree:wght@300..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 97% 0.01 80;
+    --foreground: 22% 0.03 260;
+    --card: 100% 0 0;
+    --card-foreground: 22% 0.03 260;
+    --popover: 100% 0 0;
+    --popover-foreground: 22% 0.03 260;
+    --primary: 80% 0.19 78;
+    --primary-foreground: 20% 0.04 60;
+    --secondary: 62% 0.18 192;
+    --secondary-foreground: 100% 0 0;
+    --muted: 94% 0.02 80;
+    --muted-foreground: 52% 0.04 260;
+    --accent: 63% 0.25 350;
+    --accent-foreground: 100% 0 0;
+    --destructive: 60% 0.22 25;
+    --destructive-foreground: 100% 0 0;
+    --success: 70% 0.2 145;
+    --success-foreground: 100% 0 0;
+    --border: 88% 0.04 80;
+    --input: 88% 0.04 80;
+    --ring: 80% 0.19 78;
+    --radius: 1rem;
+
+    --fun-yellow: 87% 0.2 95;
+    --fun-teal: 62% 0.18 192;
+    --fun-pink: 63% 0.25 350;
+    --fun-purple: 63% 0.22 300;
+    --fun-orange: 72% 0.2 45;
+    --fun-green: 72% 0.2 145;
+
+    --chart-1: 80% 0.19 78;
+    --chart-2: 62% 0.18 192;
+    --chart-3: 63% 0.25 350;
+    --chart-4: 63% 0.22 300;
+    --chart-5: 72% 0.2 45;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .fun-card {
+    @apply rounded-3xl border-2 border-border bg-card shadow-fun p-6;
+  }
+
+  .fun-btn {
+    @apply rounded-2xl font-bold text-lg px-6 py-3 transition-all duration-200 active:scale-95;
+  }
+
+  .pixel-cell {
+    @apply border border-gray-200 cursor-pointer transition-colors duration-75;
+  }
+
+  .wobble:hover {
+    animation: wobble 0.4s ease-in-out;
+  }
+
+  .bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-3deg); }
+  40% { transform: rotate(3deg); }
+  60% { transform: rotate(-2deg); }
+  80% { transform: rotate(2deg); }
+}
+
+@keyframes bounceIn {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(var(--fun-yellow) / 0.3) 0%,
+    oklch(var(--fun-teal) / 0.2) 50%,
+    oklch(var(--fun-pink) / 0.2) 100%
+  );
+}
+
+.bg-dots {
+  background-image: radial-gradient(oklch(var(--fun-teal) / 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
